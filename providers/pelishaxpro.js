@@ -3,13 +3,11 @@
  * Flow: TMDB ID -> PelisHaxPro page -> Spanish Latino servers -> StreamWish / VidHide decoders.
  * Runtime dependencies provided by Nuvio: fetch.
  *
- * CONFIGURATION:
- * ENABLE_VIDHIDE = true  -> publishes StreamWish and VidHide (default).
- * ENABLE_VIDHIDE = false -> publishes StreamWish only.
+ * CONFIGURATION: VidHide permanece desactivado; solo se publica StreamWish.
  */
 
 const PROVIDER_NAME = 'PelisHaxPro';
-// Interruptor de proveedor: true = habilitar VidHide; false = solo StreamWish.
+// VidHide se mantiene desactivado por solicitud; no se consulta ni publica.
 const ENABLE_VIDHIDE = false;
 const PELIHAX_BASE = 'https://pelishaxpro.com';
 const PELIHAX_REFERER = PELIHAX_BASE + '/';
@@ -267,6 +265,23 @@ function makeStreamwishStream(playlist, language, mediaType) {
   };
 }
 
+// Si el embed entrega solo el shell JavaScript (por ejemplo, <title>Loading...</title>),
+// se devuelve el enlace original para que el decoder StreamWish integrado en Nuvio
+// complete la redirección del mirror. No se intenta ejecutar JavaScript dentro del plugin.
+function makeStreamwishEmbedStream(embedUrl, language, mediaType) {
+  return {
+    name: PROVIDER_NAME,
+    title: '',
+    url: embedUrl,
+    quality: '📺 StreamWish\nAuto | HLS | ' + (mediaType === 'tv' ? 'Serie' : 'Película') + '\n' + languageLabel(language),
+    headers: {
+      'User-Agent': UA,
+      'Referer': PELIHAX_REFERER
+    },
+    type: 'hls'
+  };
+}
+
 // Lee el manifiesto maestro y reproduce el comportamiento esencial de M3u8Helper:
 // expone las variantes de calidad como streams separados, sin cambiar las extensiones
 // .txt que usa el CDN ni construir URLs de manifiesto que no existen.
@@ -425,8 +440,22 @@ function resolveStreamwishSources(languageSources, language, mediaType) {
 
   // Los mirrors StreamWish se prueban en serie y se detiene al encontrar uno funcional.
   // Así se evita esperar a mirrors que agotan el tiempo de espera.
+  function fallbackEmbeds() {
+    var seen = new Set();
+    return pages.filter(function (item) {
+      if (!item.url || seen.has(item.url)) return false;
+      seen.add(item.url);
+      return true;
+    }).map(function (item) {
+      return makeStreamwishEmbedStream(item.url, language, mediaType);
+    });
+  }
+
   function tryPage(index) {
-    if (index >= pages.length) return Promise.resolve([]);
+    if (index >= pages.length) {
+      log('No se extrajo HLS del HTML inicial; se entrega el embed original al decoder StreamWish de Nuvio.');
+      return Promise.resolve(fallbackEmbeds());
+    }
     var item = pages[index];
     return fetchText(item.url, {
       'Referer': PELIHAX_REFERER,
@@ -551,7 +580,7 @@ function getStreams(tmdbId, mediaType, season, episode) {
       ? servers.filter(function (item) { return item.provider === 'vidhide'; })
       : [];
 
-    log('PelisHaxPro: ' + servers.length + ' servidor(es) en español latino; StreamWish: ' + streamwishSources.length + '; VidHide: ' + (ENABLE_VIDHIDE ? vidhideSources.length : 'desactivado por switch'));
+    log('PelisHaxPro: ' + servers.length + ' servidor(es) en español latino; StreamWish: ' + streamwishSources.length + '; VidHide: desactivado por configuración');
     streamwishSources.forEach(function (item) { log('Fuente asignada a decoder StreamWish: ' + safeUrl(item.url)); });
     vidhideSources.forEach(function (item) { log('Fuente asignada a decoder VidHide: ' + safeUrl(item.url)); });
     if (!servers.length) {
@@ -568,7 +597,7 @@ function getStreams(tmdbId, mediaType, season, episode) {
       var streamwishStreams = results[0] || [];
       var vidhideStreams = results[1] || [];
       var streams = combineProviderStreams(streamwishStreams, vidhideStreams);
-      log('Resultado: ' + streams.length + ' playlist(s) HLS; StreamWish: ' + streamwishStreams.length + '; VidHide: ' + (ENABLE_VIDHIDE ? vidhideStreams.length : 'desactivado'));
+      log('Resultado: ' + streams.length + ' fuente(s); StreamWish: ' + streamwishStreams.length + '; VidHide: desactivado');
       return streams;
     });
   }).catch(function (error) {
