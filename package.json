@@ -1,0 +1,9 @@
+{
+  "name": "pelishaxpro-nuvio-plugin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nuvio provider for PelisHaxPro with Spanish Latino StreamWish and VidHide sources.",
+  "scripts": {
+    "test": "node --test tests/test-provider.js"
+  }
+}
