@@ -1,12 +1,12 @@
 {
   "name": "PelisHaxPro",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "scrapers": [
     {
       "id": "pelishaxpro",
       "name": "PelisHaxPro",
       "description": "Películas y series de PelisHaxPro. Extrae servidores en español latino y ofrece StreamWish y VidHide.",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "author": "Community",
       "supportedTypes": [
         "movie",

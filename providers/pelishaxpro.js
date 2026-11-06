@@ -10,7 +10,7 @@
 
 const PROVIDER_NAME = 'PelisHaxPro';
 // Interruptor de proveedor: true = habilitar VidHide; false = solo StreamWish.
-const ENABLE_VIDHIDE = true;
+const ENABLE_VIDHIDE = false;
 const PELIHAX_BASE = 'https://pelishaxpro.com';
 const PELIHAX_REFERER = PELIHAX_BASE + '/';
 const UA = 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36';
@@ -432,7 +432,11 @@ function resolveStreamwishSources(languageSources, language, mediaType) {
       'Referer': PELIHAX_REFERER,
       'Accept': 'text/html,application/xhtml+xml'
     }).then(function (page) {
-      return resolveStreamwishStreams(page.text, item.url);
+      // StreamWish puede redirigir a un mirror rotativo (por ejemplo niramirus.com).
+      // Las rutas relativas y los encabezados HLS deben usar el host final, no el alias.
+      var finalPageUrl = page.response && page.response.url ? page.response.url : item.url;
+      log('StreamWish embed final: ' + safeUrl(finalPageUrl));
+      return resolveStreamwishStreams(page.text, finalPageUrl);
     }).then(function (playlists) {
       if (!playlists.length) {
         log('StreamWish sin variantes; se prueba el siguiente mirror: ' + safeUrl(item.url));
