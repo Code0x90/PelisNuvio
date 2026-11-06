@@ -399,9 +399,13 @@ function resolveStreamwishStreams(html, pageUrl) {
 }
 
 function streamwishPageUrl(value) {
-  var url = String(value || '');
-  // Algunos listados usan hglink.to como alias de la página StreamWish.
-  if (/^https?:\/\/hglink\.to\//i.test(url)) return url.replace(/^https?:\/\/hglink\.to/i, 'https://vibuxer.com');
+  var url = String(value || '').trim();
+  // Mismo método que SoloLatino: usar vibuxer.com como host de entrada
+  // para los enlaces alias de StreamWish, conservando íntegramente la ruta /e/{id},
+  // query y hash. PelisHaxPro también entrega directamente streamwish.to.
+  if (/^https?:\/\/(?:hglink\.to|streamwish\.(?:to|com|net|io))\//i.test(url)) {
+    return url.replace(/^https?:\/\/[^/]+/i, 'https://vibuxer.com');
+  }
   return url;
 }
 

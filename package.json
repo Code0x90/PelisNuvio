@@ -1,6 +1,6 @@
 {
   "name": "pelishaxpro-nuvio-plugin",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": true,
   "description": "Nuvio provider for PelisHaxPro with Spanish Latino StreamWish sources; VidHide disabled.",
   "scripts": {

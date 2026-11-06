@@ -1,12 +1,12 @@
 {
   "name": "PelisHaxPro",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "scrapers": [
     {
       "id": "pelishaxpro",
       "name": "PelisHaxPro",
-      "description": "Películas y series de PelisHaxPro. Extrae fuentes en español latino y entrega StreamWish al decoder integrado de Nuvio.",
-      "version": "1.0.3",
+      "description": "Películas y series de PelisHaxPro. Extrae fuentes en español latino y aplica el mirror vibuxer.com para StreamWish; VidHide desactivado.",
+      "version": "1.0.4",
       "author": "Community",
       "supportedTypes": [
         "movie",
