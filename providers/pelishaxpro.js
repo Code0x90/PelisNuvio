@@ -176,20 +176,22 @@ function resolveServerUrl(value) {
   return null;
 }
 
-function getServerProvider(url, hint) {
+function getServerProvider(url) {
+  // La asignación del decoder se hace exclusivamente por el host de data-link.
+  // No se usa el texto visible (FWISH/FHIDE), porque puede variar o venir
+  // mezclado con etiquetas cercanas en el HTML.
   var host = '';
   try {
-    host = String(url).match(/^https?:\/\/([^/:?#]+)/i)[1].toLowerCase();
+    var match = String(url).match(/^https?:\/\/([^/:?#]+)/i);
+    host = match ? match[1].toLowerCase() : '';
   } catch (_) {}
-  var info = String(hint || '').toLowerCase();
 
   if (/(^|\.)streamwish\.(?:to|com|net|io)$/.test(host) ||
       /(^|\.)wishfast\.(?:top|com)$/.test(host) ||
-      /(^|\.)hglink\.to$/.test(host) || /(^|\.)vibuxer\.com$/.test(host) || /\bfwish\b|streamwish/.test(info)) {
+      /(^|\.)hglink\.to$/.test(host) || /(^|\.)vibuxer\.com$/.test(host)) {
     return 'streamwish';
   }
-  if (/(^|\.)vidhide(?:vip)?\.(?:com|net|to)$/.test(host) ||
-      /\bfhide\b|vidhide/.test(info)) {
+  if (/(^|\.)vidhide(?:vip)?\.(?:com|net|to)$/.test(host)) {
     return 'vidhide';
   }
   return null;
@@ -213,11 +215,11 @@ function extractPelisHaxServers(html) {
   var seen = Object.create(null);
   tags.forEach(function (item, index) {
     var nextStart = index + 1 < tags.length ? tags[index + 1].start : source.length;
-    // La bandera/etiqueta suele estar dentro del server-item; limitar el fragmento
-    // evita mezclar la bandera de otro servidor.
-    var inner = source.slice(item.end, Math.min(nextStart, item.end + 5000));
     var attrs = item.attrs;
     var language = attrs['data-lang'] || attrs['data-language'] || attrs['data-audio'] || attrs['lang'] || '';
+    // data-lang de PelisHaxPro identifica explícitamente la pista. Para aceptar
+    // español genérico (ESP) se exige una señal México dentro del propio elemento.
+    var inner = source.slice(item.end, Math.min(nextStart, item.end + 5000));
     var context = Object.keys(attrs).map(function (key) { return key + '=' + attrs[key]; }).join(' ') + ' ' + inner;
     if (!isLatinSpanish(language, context)) return;
 
@@ -225,9 +227,8 @@ function extractPelisHaxServers(html) {
     var url = resolveServerUrl(rawUrl);
     if (!url || !/^https?:\/\//i.test(url)) return;
 
-    var visible = inner.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
-    var hint = [attrs['data-server'], attrs['data-name'], attrs['title'], visible].filter(Boolean).join(' ');
-    var provider = getServerProvider(url, hint);
+    // Una URL de StreamWish nunca se envía al decoder VidHide y viceversa.
+    var provider = getServerProvider(url);
     if (!provider || seen[url]) return;
     seen[url] = true;
     servers.push({ provider: provider, url: url, lang: 'LAT' });
@@ -504,8 +505,12 @@ function combineProviderStreams(streamwishStreams, vidhideStreams) {
   // Orden explícito de catálogo: StreamWish primero, VidHide después.
   // Dentro de cada proveedor, mostrar primero la resolución más alta.
   (streamwishStreams || []).concat(vidhideStreams || []).forEach(function (stream) {
-    if (!stream || !stream.url || seen.has(stream.url)) return;
-    seen.add(stream.url);
+    if (!stream || !stream.url) return;
+    // Deduplicar dentro de cada decoder, nunca entre StreamWish y VidHide.
+    var provider = /VidHide/i.test(String(stream.quality || '')) ? 'vidhide' : 'streamwish';
+    var key = provider + '|' + stream.url;
+    if (seen.has(key)) return;
+    seen.add(key);
     combined.push(stream);
   });
   var providerRank = function (stream) {
@@ -543,6 +548,8 @@ function getStreams(tmdbId, mediaType, season, episode) {
       : [];
 
     log('PelisHaxPro: ' + servers.length + ' servidor(es) en español latino; StreamWish: ' + streamwishSources.length + '; VidHide: ' + (ENABLE_VIDHIDE ? vidhideSources.length : 'desactivado por switch'));
+    streamwishSources.forEach(function (item) { log('Fuente asignada a decoder StreamWish: ' + safeUrl(item.url)); });
+    vidhideSources.forEach(function (item) { log('Fuente asignada a decoder VidHide: ' + safeUrl(item.url)); });
     if (!servers.length) {
       log('No se encontraron servidores compatibles en español latino. Se omiten castellano y otros idiomas.');
       return [];
